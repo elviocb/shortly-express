@@ -22,27 +22,29 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
-
-app.get('/', 
+// curl -X GET http://127.0.0.1:4568
+app.get('/', util.isLoggedIn,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/create', 
+app.get('/create', util.isLoggedIn,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/links', 
+app.get('/links', util.isLoggedIn,
 function(req, res) {
   Links.reset().fetch().then(function(links) {
+
     res.send(200, links.models);
   });
 });
 
-app.post('/links', 
+app.post('/links', util.isLoggedIn,
 function(req, res) {
   var uri = req.body.url;
+  console.log('uri',uri);
 
   if (!util.isValidUrl(uri)) {
     console.log('Not a valid url: ', uri);
@@ -80,6 +82,7 @@ function(req, res) {
 
 
 
+
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
 // assume the route is a short code and try and handle it here.
@@ -101,6 +104,7 @@ app.get('/*', function(req, res) {
           .update({
             visits: link.get('visits') + 1,
           }).then(function() {
+            console.log('REDIRECTING', link.get('url'));
             return res.redirect(link.get('url'));
           });
       });
