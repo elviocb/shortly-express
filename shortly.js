@@ -46,6 +46,20 @@ function(req, res) {
   res.render('login');
 });
 
+//====== SIGNUP ======
+app.get('/signup',
+function(req, res) {
+  // console.log('req body!!!!', req.body);
+  res.render('signup');
+});
+
+app.post('/signup',
+function(req, res) {
+  console.log('req body!!!!', req.body);
+  res.render('signup');
+});
+
+
 app.post('/links', util.isLoggedIn,
 function(req, res) {
   var uri = req.body.url;
