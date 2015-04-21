@@ -1,7 +1,9 @@
 var express = require('express');
-var util = require('./lib/utility');
 var partials = require('express-partials');
+var session = require('express-session');
+var util = require('./lib/utility');
 var bodyParser = require('body-parser');
+var bcrypt = require('bcrypt-nodejs');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -11,6 +13,9 @@ var Link = require('./app/models/link');
 var Click = require('./app/models/click');
 
 var app = express();
+var sess;
+
+app.use(session({secret: 'ssshhhhh', cookie: {expires: new Date(Date.now() + 60000)}})); // Expires in 1 hour
 
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
@@ -22,17 +27,17 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
 // curl -X GET http://127.0.0.1:4568
-app.get('/', util.isLoggedIn,
+app.get('/', util.checkUser,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/create', util.isLoggedIn,
+app.get('/create', util.checkUser,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/links', util.isLoggedIn,
+app.get('/links', util.checkUser,
 function(req, res) {
   Links.reset().fetch().then(function(links) {
 
@@ -46,21 +51,39 @@ function(req, res) {
   res.render('login');
 });
 
+app.post('/login', function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  new User({ username: username}).fetch().then(function(found){
+    if (found){
+      var realPass = found.get('password');
+      bcrypt.compare(password, realPass, function(err, istrue) {
+        console.log(istrue);
+        if(istrue){
+          sess = req.session;
+          sess.username = username;
+          res.redirect('/');
+        }
+        else {
+          console.log('wrong password!');
+        }
+      });
+    }
+    else {
+      console.log('user does not exist');
+    }
+  });
+
+});
+
 //====== SIGNUP ======
 app.get('/signup',
 function(req, res) {
-  // console.log('req body!!!!', req.body);
   res.render('signup');
 });
 
-app.post('/signup',
-function(req, res) {
-  console.log('req body!!!!', req.body);
-  res.render('signup');
-});
-
-
-app.post('/links', util.isLoggedIn,
+app.post('/links', util.checkUser,
 function(req, res) {
   var uri = req.body.url;
   console.log('uri',uri);
@@ -99,6 +122,36 @@ function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 
+app.post('/signup',
+function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  var salt = bcrypt.genSaltSync(4);
+  bcrypt.hash(password, salt, null, function(err, hash) {
+
+    new User({ username: username}).fetch().then(function(found){
+      if (found){
+        console.log('user exists');
+      }
+      else {
+        var user = new User({
+          username: username,
+          password: hash,
+          salt: salt
+        });
+
+        user.save().then(function(newUser){
+          console.log('New user created:', newUser);
+          sess = req.session;
+          sess.username = username;
+          res.redirect('/');
+        });
+      }
+    });
+
+  });
+});
 
 
 
