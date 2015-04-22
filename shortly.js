@@ -13,7 +13,6 @@ var Link = require('./app/models/link');
 var Click = require('./app/models/click');
 
 var app = express();
-var sess;
 
 app.use(session({secret: 'ssshhhhh', cookie: {expires: new Date(Date.now() + 60000)}})); // Expires in 1 hour
 
@@ -37,19 +36,21 @@ function(req, res) {
   res.render('index');
 });
 
-app.get('/links', util.checkUser,
-function(req, res) {
-  Links.reset().fetch().then(function(links) {
-
-    res.send(200, links.models);
-  });
-});
-
 //====== LOGIN ======
 app.get('/login',
 function(req, res) {
   res.render('login');
 });
+
+app.get('/logout',
+  function(req, res){
+    console.log('calling logout');
+    // res.writeHeader(301);
+    req.session.destroy(function(){
+      res.redirect('/login');
+    })
+  }
+);
 
 app.post('/login', function(req, res) {
   var username = req.body.username;
@@ -61,8 +62,8 @@ app.post('/login', function(req, res) {
       bcrypt.compare(password, realPass, function(err, istrue) {
         console.log(istrue);
         if(istrue){
-          sess = req.session;
-          sess.username = username;
+          var sess = req.session;
+          sess.user_id = found.get('id');
           res.redirect('/');
         }
         else {
@@ -81,6 +82,15 @@ app.post('/login', function(req, res) {
 app.get('/signup',
 function(req, res) {
   res.render('signup');
+});
+
+
+//====== LINKS ======
+app.get('/links', util.checkUser,
+function(req, res) {
+  Links.reset().query({where: {user_id: req.session.user_id}}).fetch().then(function(links) {
+    res.send(200, links.models);
+  });
 });
 
 app.post('/links', util.checkUser,
@@ -105,6 +115,7 @@ function(req, res) {
 
         var link = new Link({
           url: uri,
+          user_id: req.session.user_id,
           title: title,
           base_url: req.headers.origin
         });
@@ -127,8 +138,7 @@ function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
 
-  var salt = bcrypt.genSaltSync(4);
-  bcrypt.hash(password, salt, null, function(err, hash) {
+  bcrypt.hash(password, null, null, function(err, hash) {
 
     new User({ username: username}).fetch().then(function(found){
       if (found){
@@ -137,14 +147,13 @@ function(req, res) {
       else {
         var user = new User({
           username: username,
-          password: hash,
-          salt: salt
+          password: hash
         });
 
         user.save().then(function(newUser){
           console.log('New user created:', newUser);
-          sess = req.session;
-          sess.username = username;
+          var sess = req.session;
+          sess.user_id = newUser.get('id');
           res.redirect('/');
         });
       }
