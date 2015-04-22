@@ -14,7 +14,7 @@ var Click = require('./app/models/click');
 
 var app = express();
 
-app.use(session({secret: 'ssshhhhh', cookie: {expires: new Date(Date.now() + 60000)}})); // Expires in 1 hour
+app.use(session({secret: 'ssshhhhh', cookie: {expires: new Date(Date.now() + 300000)}})); // Expires in 1 hour
 
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
@@ -47,7 +47,7 @@ app.get('/logout',
     console.log('calling logout');
     // res.writeHeader(301);
     req.session.destroy(function(){
-      res.redirect('/login');
+      res.redirect(301,'/login');
     })
   }
 );
